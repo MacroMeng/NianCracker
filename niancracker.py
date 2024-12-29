@@ -79,27 +79,12 @@ def update() -> None:
 
     need_del = []
     for tnt in flying_tnts:
-        if not tnt.fly_up_done:
-            tnt.y -= TNT_FLY_SPEED
-            draw()
-        if tnt.y < -100:
-            tnt.fly_up_done = True
-        tnt.nearest_nian = find_nearest_nian(tnt) if not tnt.looked_for_nian else tnt.nearest_nian
-        tnt.has_target = tnt.nearest_nian is not None
-        if tnt.has_target and not tnt.fly_down_done and tnt.fly_up_done:
-            print(f"{f"YEP and {tnt}":=^100}")
-            tnt.y += TNT_FLY_SPEED
-            tnt.x = tnt.nearest_nian.x
-            draw()
-        if tnt.has_target and is_near(tnt.pos, tnt.nearest_nian.pos, 100):
-            tnt.fly_down_done = True
-        if tnt.has_target and tnt.fly_up_done and tnt.fly_down_done:
-            nians.pop(nians.index(tnt.nearest_nian))
-            sounds.mobhurt.play()
-            need_del.append(flying_tnts.index(tnt))
-        if not tnt.has_target and tnt.fly_up_done:
-            need_del.append(flying_tnts.index(tnt))
-        print(tnt.pos, tnt.fly_up_done, tnt.fly_down_done, tnt.has_target, tnt.nearest_nian)
+        tnt.x += TNT_FLY_SPEED
+        for nian in nians:
+            if is_near(tnt.pos, nian.pos):
+                sounds.mobhurt.play()
+                nians.pop(nians.index(nian))
+                need_del.append(flying_tnts.index(tnt))
     for i in need_del:
         flying_tnts.pop(i)
 
@@ -120,9 +105,6 @@ def on_mouse_down() -> None:
 
 def tnt_shoot(index) -> None:
     tnt = actor_as_abs_path("./images/tnt.png", copy.copy(tnts[index].pos))
-    tnt.fly_up_done = False
-    tnt.fly_down_done = False
-    tnt.looked_for_nian = False
     flying_tnts.append(tnt)
 
 
@@ -149,10 +131,16 @@ def time_fmt(time_s: int) -> str:
     return f"{min_:0>2}:{sec:0>2}"
 
 
-def is_near(pos1: tuple[float, float], pos2: tuple[float, float], delta: int = 50) -> bool:
+def is_near(pos1: tuple[float, float],
+            pos2: tuple[float, float],
+            xdelta: float | None = 50,
+            ydelta: float | None = 50) -> bool:
+    if xdelta is None:
+        xdelta = pos1[0] + pos2[0]
+        ydelta = pos1[1] + pos2[1]
     return (
-        abs(pos1[0] - pos2[0]) < delta and
-        abs(pos1[1] - pos2[1]) < delta
+        abs(pos1[0] - pos2[0]) < xdelta and
+        abs(pos1[1] - pos2[1]) < ydelta
     )
 
 
