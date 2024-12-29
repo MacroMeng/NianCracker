@@ -7,13 +7,15 @@ import pgzrun
 
 WIDTH = 1600
 HEIGHT = 900
+FRAME_RATE = 60
 TNT_POSES = tuple((410, i) for i in range(300, 600+1, 100))
 NIAN_SPAWN_POSES = tuple((1300, i) for _, i in TNT_POSES)
-NIAN_SPAWN_PROB = 25
-NIAN_SPEED = 2
+NIAN_SPAWN_PROB = 20
+NIAN_SPEED = 2.5
 START_TIME = time.time()
-TNT_FLY_SPEED = 10
-TNT_CD = 0.2
+TNT_FLY_SPEED = 15
+TNT_CD = 0.1
+TOTAL_TIME = 3 * 60
 
 health = 20
 ongoing_time_s = 0
@@ -38,7 +40,8 @@ base_heart = actor_as_abs_path("./images/heart.png")
 hearts = [base_heart] * health
 flying_tnts = []
 nians = []
-notification = "KILL NIANS!"
+notification = "点击TNT，射击年！"
+ending_helper = type("EndingHelper", (), {"ending_l": False, "ending_time": None, "ending_w": False})()
 
 music.play("pigsteps.mp3")
 
@@ -50,6 +53,7 @@ def draw() -> None:
     bg.draw()
     for tnt in tnts:
         tnt.draw()
+    if tnt_cd == 0:
         flint_and_steel.draw()
     for nian in nians:
         nian.draw()
@@ -57,36 +61,64 @@ def draw() -> None:
         tnt.draw()
     for heart in hearts:
         heart.draw()
-    posshow.draw()
     screen.draw.text(
-        text=f"Health: {health} | "
-             f"Time: {time_fmt(ongoing_time_s)} | "
-             f"TNTs: {tnt_num} | "
-             f"Score: {score}",
-        fontsize=50,
-        fontname="mc_ten.otf",
+        text=f"血量: {health} | "
+             f"时间: {time_fmt(ongoing_time_s)} | "
+             f"剩余时间: {time_fmt(TOTAL_TIME - ongoing_time_s)} | "
+             f"剩余TNT: {tnt_num} | "
+             f"分数: {score}",
+        fontsize=40,
+        fontname="unifont.otf",
         color="white",
         pos=(150, 50)
     )
     screen.draw.text(
         text=notification,
         fontsize=50,
-        fontname="mc_ten.otf",
+        fontname="unifont.otf",
         color="white",
         pos=(150, 800)
     )
     screen.draw.text(
-        text=f"Shoot CD: {tnt_cd:.2f} s",
+        text=f"TNT冷却: {tnt_cd:.2f} s",
         fontsize=50,
-        fontname="mc_ten.otf",
+        fontname="unifont.otf",
         color="white",
         pos=(150, 750)
     )
+    if health <= 0:
+        screen.draw.text(
+            text="YOU DIED",
+            fontsize=200,
+            fontname="mc_ten.otf",
+            color="white",
+            pos=(150, 550)
+        )
 
 
 def update() -> None:
     global nians, ongoing_time_s, ongoing_time, health, tnt_num, score, \
-           notification, last_cd_update, tnt_cd, hearts
+           notification, last_cd_update, tnt_cd, hearts, ending_helper
+
+    if health <= 0:
+        notification = f"你没了qwq"
+        ending_helper.ending_l = True
+        ending_helper.ending_time = time.time() if ending_helper.ending_time is None else ending_helper.ending_time
+        if (time.time() - ending_helper.ending_time) > 1.:
+            music.play_once("medead.mp3")
+            time.sleep(2)
+            quit(-114514)
+    if ongoing_time_s >= TOTAL_TIME:
+        notification = f"时间到了！"
+        ending_helper.ending_w = True
+        ending_helper.ending_time = time.time() if ending_helper.ending_time is None else ending_helper.ending_time
+        if (time.time() - ending_helper.ending_time) > 1.:
+            music.play_once("mewin.mp3")
+            time.sleep(2)
+            quit(114514)
+
+    if ending_helper.ending_l or ending_helper.ending_w:
+        return
 
     if random.randint(1, NIAN_SPAWN_PROB) == 1:
         new_nian()
@@ -96,7 +128,7 @@ def update() -> None:
         if nian.x < 450:
             sounds.mehurt.play()
             need_del.append(nians.index(nian))
-            notification = f"You've been hit by Nian!"
+            notification = f"你被年击打了！（哦那看起来很接近"
     for i in need_del:
         nians.pop(i)
         health -= 1
@@ -119,7 +151,7 @@ def update() -> None:
                 need_del.append(flying_tnts.index(tnt))
                 score_add = random.randrange(500, 2500 + 1, 500)
                 score += score_add
-                notification = f"Killed 1 Nian | Score added {score_add}"
+                notification = f"1个年被炸掉了！| 加分！ {score_add}（把老子的意大利炮拿出来"
     for i in need_del:
         try:
             flying_tnts.pop(i)
@@ -147,25 +179,18 @@ def on_mouse_down() -> None:
 
 
 def tnt_shoot(index) -> None:
+    global notification
     tnt = actor_as_abs_path("./images/tnt.png", copy.copy(tnts[index].pos))
     flying_tnts.append(tnt)
-
-
-def find_nearest_nian(tnt: Actor) -> Actor:
-    possibly_nians = []
-    for nian in nians:
-        if abs(nian.y - tnt.y) < 10:
-            print(f"found 1 <{nian}, {tnt}>")
-            possibly_nians.append(nian)
-    nearest_nian = min(possibly_nians, key=lambda n: abs(n.x - tnt.x), default=None)
-    print(nearest_nian)
-    return nearest_nian
+    notification = "发射了一个TNT！（把老子的意大利炮拿出来"
 
 
 def new_nian() -> None:
+    global notification
     new = actor_as_abs_path("./images/nian_s.png")
     new.pos = random.choice(NIAN_SPAWN_POSES)
     nians.append(new)
+    notification = "又有一个年出来了！（子子孙孙无穷尽也"
 
 
 def time_fmt(time_s: int) -> str:
